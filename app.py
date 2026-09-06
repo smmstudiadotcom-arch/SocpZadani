@@ -101,9 +101,13 @@ def collect_reports(keyword):
     if not keyword:
         return {"error": "Введи ключевое слово"}
 
-    lst = sp_api("task_list", active="all")
+    lst = sp_api("task_list", data=json.dumps({"active": "all"}), active="all")
     if lst.get("status") != 0:
-        return {"error": lst.get("text", "не удалось получить список заданий")}
+        detail = lst.get("text", "не удалось получить список заданий")
+        d = lst.get("data")
+        if isinstance(d, dict) and d:
+            detail += " — " + "; ".join(f"{k}: {v}" for k, v in d.items())
+        return {"error": f"task_list: {detail}"}
 
     raw_ids = lst.get("data", [])
     while isinstance(raw_ids, list) and len(raw_ids) == 1 and isinstance(raw_ids[0], list):
