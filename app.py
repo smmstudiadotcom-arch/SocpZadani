@@ -106,6 +106,12 @@ input:focus{border-color:#4f6fff;box-shadow:0 0 0 3px rgba(79,111,255,.1)}
 .nets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}
 .net{padding:6px 13px;border-radius:20px;font-size:12.5px;cursor:pointer;border:1px solid #4f6fff;background:#eef2ff;color:#4f46e5}
 .net.off{border-color:#e5e7eb;background:#fff;color:#9ca3af}
+.netshead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.netshead label{margin-bottom:0}
+.pick{display:flex;gap:6px}
+.pick button{border:none;background:none;color:#4f6fff;font-size:12.5px;cursor:pointer;padding:2px 4px;font-family:inherit}
+.pick button:hover{text-decoration:underline}
+.pick span{color:#d1d5db;font-size:12px}
 button.main{width:100%;padding:13px;border-radius:9px;font-size:15px;font-weight:600;cursor:pointer;border:none;background:#4f6fff;color:#fff}
 button.main:disabled{background:#c7cbd4;cursor:not-allowed}
 .cost{font-size:13px;color:#6b7280;text-align:center;margin-bottom:12px}
@@ -134,7 +140,10 @@ __PASSFIELD__
 <div><label>Оплата исполнителю, ₽</label><input type="number" id="price" value="6" min="1" step="0.5"></div>
 <div><label>Количество выполнений</label><input type="number" id="qty" value="10" min="1" step="1"></div>
 </div>
+<div class="netshead">
 <label id="nl">Соцсети</label>
+<div class="pick"><button id="all">выбрать все</button><span>·</span><button id="none">снять все</button></div>
+</div>
 <div class="nets" id="nets"></div>
 <p class="err" id="err"></p>
 <p class="cost" id="cost"></p>
@@ -170,6 +179,10 @@ NETWORKS.forEach(n=>{
   b.onclick=()=>{sel.has(n)?(sel.delete(n),b.classList.add('off')):(sel.add(n),b.classList.remove('off'));refresh();};
   $('nets').appendChild(b);
 });
+$('all').onclick=()=>{sel=new Set(NETWORKS);
+  document.querySelectorAll('.net').forEach(b=>b.classList.remove('off'));refresh();};
+$('none').onclick=()=>{sel=new Set();
+  document.querySelectorAll('.net').forEach(b=>b.classList.add('off'));refresh();};
 $('qty').oninput=refresh;$('price').oninput=refresh;refresh();
 $('preview').innerHTML=PREVIEWS[tpl];
 $('go').onclick=async()=>{
@@ -255,3 +268,4 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"Запущено на порту {PORT}", flush=True)
     HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+            
