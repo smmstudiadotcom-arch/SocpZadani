@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 import urllib.request
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -99,24 +100,46 @@ def collect_reports(keyword):
     """Ищет задания по ключевому слову в названии и собирает тексты отчётов."""
     keyword = keyword.strip().lower()
     if not keyword:
-        return {"error": "Введи ключевое слово"}
+        return {"error": "Введи ключевое слово или номера заданий"}
 
-    lst = sp_api("task_list", data=json.dumps({"active": "all"}), active="all")
-    if lst.get("status") != 0:
-        detail = lst.get("text", "не удалось получить список заданий")
-        d = lst.get("data")
-        if isinstance(d, dict) and d:
-            detail += " — " + "; ".join(f"{k}: {v}" for k, v in d.items())
-        return {"error": f"task_list: {detail}"}
+    # если введены номера заданий через запятую/пробел — берём их напрямую
+    direct = [t for t in re.split(r"[,\s]+", keyword) if t]
+    if direct and all(t.isdigit() for t in direct):
+        return gather(direct, match_all=True)
 
-    raw_ids = lst.get("data", [])
-    while isinstance(raw_ids, list) and len(raw_ids) == 1 and isinstance(raw_ids[0], list):
-        raw_ids = raw_ids[0]
-    ids = [str(i) for i in raw_ids if str(i).isdigit()]
+    def flatten(v, acc):
+        if isinstance(v, list):
+            for x in v:
+                flatten(x, acc)
+        elif isinstance(v, dict):
+            for x in v.values():
+                flatten(x, acc)
+        elif str(v).isdigit():
+            acc.append(str(v))
+
+    ids, last_err = [], None
+    for state in ("all", "yes", "no"):
+        lst = sp_api("task_list", data=json.dumps({"active": state}), active=state)
+        if lst.get("status") != 0:
+            detail = lst.get("text", "нет ответа")
+            d = lst.get("data")
+            if isinstance(d, dict) and d:
+                detail += " — " + "; ".join(f"{k}: {v}" for k, v in d.items())
+            last_err = f"task_list({state}): {detail}"
+            continue
+        found = []
+        flatten(lst.get("data", []), found)
+        for i in found:
+            if i not in ids:
+                ids.append(i)
 
     if not ids:
-        return {"error": f"task_list вернул пусто. Ответ: {json.dumps(lst, ensure_ascii=False)[:300]}"}
+        return {"error": last_err or "task_list вернул пустой список"}
 
+    return gather(ids, keyword=keyword)
+
+
+def gather(ids, keyword="", match_all=False):
     tasks, texts = [], []
     seen_names, info_fail = [], 0
     for tid in ids:
@@ -128,7 +151,7 @@ def collect_reports(keyword):
         name = d.get("name", "")
         if len(seen_names) < 8:
             seen_names.append(name)
-        if keyword not in name.lower():
+        if not match_all and keyword not in name.lower():
             continue
 
         count = 0
@@ -244,7 +267,7 @@ __PASSFIELD__
 <div id="pane-links" style="display:none">
 <p class="hint">Забирает отчёты исполнителей из заданий SocPublic по слову в названии, вытаскивает ссылки на соцсети и перемешивает их.</p>
 <div class="srow">
-<input type="text" id="kwsearch" placeholder="слово в названии задания, напр. club199609929">
+<input type="text" id="kwsearch" placeholder="слово в названии или номера заданий через запятую">
 <button id="fetch">Собрать отчёты</button>
 </div>
 <div class="found" id="found" style="display:none"></div>
