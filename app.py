@@ -114,13 +114,20 @@ def collect_reports(keyword):
         raw_ids = raw_ids[0]
     ids = [str(i) for i in raw_ids if str(i).isdigit()]
 
+    if not ids:
+        return {"error": f"task_list вернул пусто. Ответ: {json.dumps(lst, ensure_ascii=False)[:300]}"}
+
     tasks, texts = [], []
+    seen_names, info_fail = [], 0
     for tid in ids:
         info = sp_api("task_info", task_id=tid)
         if info.get("status") != 0:
+            info_fail += 1
             continue
         d = info.get("data", {})
         name = d.get("name", "")
+        if len(seen_names) < 8:
+            seen_names.append(name)
         if keyword not in name.lower():
             continue
 
@@ -141,7 +148,13 @@ def collect_reports(keyword):
         tasks.append({"id": tid, "name": name, "reports": count})
 
     if not tasks:
-        return {"error": f"Заданий со словом «{keyword}» не найдено"}
+        msg = (f"Заданий со словом «{keyword}» не найдено. "
+               f"Просмотрено {len(ids)} заданий")
+        if info_fail:
+            msg += f", из них {info_fail} не открылись"
+        if seen_names:
+            msg += ". Примеры названий: " + " | ".join(seen_names)
+        return {"error": msg}
     return {"tasks": tasks, "text": "\n".join(texts)}
 
 
