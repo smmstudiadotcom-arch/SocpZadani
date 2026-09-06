@@ -25,7 +25,7 @@ TEMPLATES = {
     },
     "seosp": {
         "label": "SeoSp",
-        "title": "SeoSp {network} {keyword}",
+        "title": "{network} {keyword}",
         "approve": "<strong>Ссылки на 7 репостов.</strong>",
     },
 }
@@ -157,7 +157,7 @@ let tpl='share';
 const $=id=>document.getElementById(id);
 const PREVIEWS={
  share:'<b>Название:</b> Поделиться в {соцсеть} {слово}<br><b>Задание:</b> поделиться ссылкой 7 раз с нативным текстом и хештегами, с фото. Тексты разные, фото с сайта.<br><b>Отчёт:</b> 7 ссылок на посты.',
- seosp:'<b>Название:</b> SeoSp {соцсеть} {слово}<br><b>Задание:</b> поделиться ссылкой и 6 постами из канала с нативным текстом и хештегами. Подписаться, поставить пару реакций.<br><b>Отчёт:</b> ссылки на 7 репостов.'
+ seosp:'<b>Название:</b> {соцсеть} {слово}<br><b>Задание:</b> поделиться ссылкой и 6 постами из канала с нативным текстом и хештегами. Подписаться, поставить пару реакций.<br><b>Отчёт:</b> ссылки на 7 репостов.'
 };
 document.querySelectorAll('.tab').forEach(t=>{
   t.onclick=()=>{
@@ -268,4 +268,3 @@ class Handler(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     print(f"Запущено на порту {PORT}", flush=True)
     HTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
-            
