@@ -72,17 +72,30 @@ def build_description(url, network, template):
     )
 
 
-def create_task(url, keyword, network, price_user, quantity, template="share"):
-    tpl = TEMPLATES.get(template, TEMPLATES["share"])
-    name = tpl["title"].format(network=network, keyword=keyword).strip()[:70]
+def create_task(url, keyword, network, price_user, quantity, template="share", custom=None):
+    if template == "custom" and custom:
+        raw_name = custom.get("name") or "Поделиться в {network} {keyword}"
+        name = raw_name.replace("{network}", network).replace("{keyword}", keyword).strip()[:70]
+        desc = (custom.get("description") or "").replace("{network}", network) \
+                                               .replace("{keyword}", keyword) \
+                                               .replace("{url}", url)
+        approve = (custom.get("approve") or "").replace("{network}", network) \
+                                               .replace("{keyword}", keyword) \
+                                               .replace("{url}", url)
+    else:
+        tpl = TEMPLATES.get(template, TEMPLATES["share"])
+        name = tpl["title"].format(network=network, keyword=keyword).strip()[:70]
+        desc = build_description(url, network, template)
+        approve = tpl["approve"]
+
     balance = round(quantity * price_user * COMMISSION, 2)
     task = {
         "name": name,
         "url": [url],
         "type": "social",
-        "description": build_description(url, network, template),
+        "description": desc,
         "approve_type": "hand",
-        "approve_text": tpl["approve"],
+        "approve_text": approve,
         "price_user": price_user,
         "balance": balance,
         "turn_on": 1,
@@ -265,6 +278,8 @@ textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5p
 .two{display:flex;gap:12px}
 .two>div{flex:1}
 .tip{font-size:12.5px;color:#667085;margin-top:6px;line-height:1.45}
+code{background:#f2f4f7;padding:1px 5px;border-radius:4px;font-size:12px;
+ font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#344054}
 
 /* соцсети */
 .nethead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:9px;flex-wrap:wrap}
@@ -328,6 +343,7 @@ textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5p
 <div class="tabs">
 <button class="tab on" data-tpl="share">Поделиться ссылкой</button>
 <button class="tab" data-tpl="seosp">SeoSp Socseti</button>
+<button class="tab" data-tpl="custom">Свой текст</button>
 <button class="tab" data-tpl="links">Сбор ссылок</button>
 </div>
 
@@ -353,8 +369,30 @@ __PASSFIELD__
 </div>
 </div>
 
-<div class="step">
+<div class="step" id="editor" style="display:none">
 <div class="num">2</div>
+<div class="body">
+<h3>Текст задания</h3>
+<div class="sub">Подставляются автоматически: <code>{network}</code> — соцсеть, <code>{keyword}</code> — слово, <code>{url}</code> — ссылка.</div>
+<div class="field">
+<label>Название</label>
+<input type="text" id="cname" value="Поделиться в {network} {keyword}">
+</div>
+<div class="field">
+<label>Описание — что делать исполнителю</label>
+<textarea id="cdesc" style="min-height:150px"></textarea>
+<div class="tip">Можно использовать HTML: &lt;p&gt;, &lt;strong&gt;, &lt;br&gt;. Минимум 100 символов.</div>
+</div>
+<div class="field">
+<label>Отчёт — что прислать в подтверждение</label>
+<textarea id="capprove" style="min-height:70px"></textarea>
+</div>
+<button class="btn ghost" id="reset">Вернуть исходный текст</button>
+</div>
+</div>
+
+<div class="step">
+<div class="num" id="num2">2</div>
 <div class="body">
 <h3>Где размещаем</h3>
 <div class="nethead">
@@ -366,7 +404,7 @@ __PASSFIELD__
 </div>
 
 <div class="step">
-<div class="num">3</div>
+<div class="num" id="num3">3</div>
 <div class="body">
 <h3>Сколько платим</h3>
 <div class="sub">На каждое задание уйдёт: количество × оплата + 30% комиссии.</div>
@@ -444,16 +482,32 @@ let tpl='share';
 const $=id=>document.getElementById(id);
 const PREVIEWS={
  share:'Задание: поделиться ссылкой 7 раз с нативным текстом и хештегами, с фото. Тексты разные, фото с сайта. Отчёт — 7 ссылок на посты.',
- seosp:'Задание: поделиться ссылкой и 6 постами из канала с нативным текстом и хештегами, подписаться и поставить пару реакций. Отчёт — ссылки на 7 репостов.'
+ seosp:'Задание: поделиться ссылкой и 6 постами из канала с нативным текстом и хештегами, подписаться и поставить пару реакций. Отчёт — ссылки на 7 репостов.',
+ custom:'Текст задания редактируется ниже — можно поменять название, описание и требования к отчёту.'
 };
+const DEFAULTS={
+ name:'Поделиться в {network} {keyword}',
+ desc:'<p><strong>Поделиться ссылкой 7 раз с нативным текстом и хештегами и с фоткой</strong></p>\n<p><a href="{url}">{url}</a></p>\n<p>Тексты разные для каждого репоста.</p>\n<p>Фото берем из сайта.</p>\n<p>Платформа: <strong>{network}</strong></p>',
+ approve:'<strong>7 ссылок на посты.</strong>'
+};
+function fillDefaults(){
+  $('cname').value=DEFAULTS.name;
+  $('cdesc').value=DEFAULTS.desc;
+  $('capprove').value=DEFAULTS.approve;
+}
+fillDefaults();
+$('reset').onclick=fillDefaults;
 document.querySelectorAll('.tab').forEach(t=>{
   t.onclick=()=>{
     document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
     t.classList.add('on');
     tpl=t.dataset.tpl;
-    const links=tpl==='links';
+    const links=tpl==='links', custom=tpl==='custom';
     $('pane-create').style.display=links?'none':'';
     $('pane-links').style.display=links?'':'none';
+    $('editor').style.display=custom?'flex':'none';
+    $('num2').textContent=custom?'3':'2';
+    $('num3').textContent=custom?'4':'3';
     if(!links)$('preview').innerHTML=PREVIEWS[tpl];
   };
 });
@@ -496,7 +550,8 @@ $('go').onclick=async()=>{
     try{
       const r=await fetch('/create',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({url,keyword:$('kw').value.trim(),network:n,
-          price_user:parseFloat($('price').value)||6,quantity:parseInt($('qty').value)||10,password:pw,template:tpl})});
+          price_user:parseFloat($('price').value)||6,quantity:parseInt($('qty').value)||10,password:pw,template:tpl,
+          custom:tpl==='custom'?{name:$('cname').value,description:$('cdesc').value,approve:$('capprove').value}:null})});
       const j=await r.json();
       if(j.status===0){rows[n].className='r ok';
         rows[n].querySelector('.st').textContent=`готово · №${j.data.id}`;ok++;}
@@ -634,7 +689,7 @@ class Handler(BaseHTTPRequestHandler):
         try:
             result = create_task(data["url"], data.get("keyword", ""), data["network"],
                                  float(data["price_user"]), int(data["quantity"]),
-                                 data.get("template", "share"))
+                                 data.get("template", "share"), data.get("custom"))
         except Exception as e:
             result = {"status": -1, "text": str(e)}
         self._send(200, "application/json; charset=utf-8",
