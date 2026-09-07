@@ -73,15 +73,26 @@ def build_description(url, network, template):
 
 
 def create_task(url, keyword, network, price_user, quantity, template="share", custom=None, stub=False):
+    def fill(text):
+        return (text or "").replace("{network}", network) \
+                           .replace("{keyword}", keyword) \
+                           .replace("{url}", url)
+
+    def to_html(text):
+        """Переносы строк превращаем в HTML, если пользователь не разметил текст сам."""
+        text = text.replace("\r\n", "\n").replace("\r", "\n")
+        if "<p" in text.lower() or "<br" in text.lower() or "<div" in text.lower():
+            return text
+        blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
+        if not blocks:
+            return text
+        return "".join("<p>" + b.replace("\n", "<br>") + "</p>" for b in blocks)
+
     if template == "custom" and custom:
         raw_name = custom.get("name") or "Поделиться в {network} {keyword}"
-        name = raw_name.replace("{network}", network).replace("{keyword}", keyword).strip()[:70]
-        desc = (custom.get("description") or "").replace("{network}", network) \
-                                               .replace("{keyword}", keyword) \
-                                               .replace("{url}", url)
-        approve = (custom.get("approve") or "").replace("{network}", network) \
-                                               .replace("{keyword}", keyword) \
-                                               .replace("{url}", url)
+        name = fill(raw_name).strip()[:70]
+        desc = to_html(fill(custom.get("description")))
+        approve = to_html(fill(custom.get("approve")))
     else:
         tpl = TEMPLATES.get(template, TEMPLATES["share"])
         name = tpl["title"].format(network=network, keyword=keyword).strip()[:70]
@@ -387,7 +398,7 @@ __PASSFIELD__
 <div class="field">
 <label>Описание — что делать исполнителю</label>
 <textarea id="cdesc" style="min-height:150px"></textarea>
-<div class="tip">Можно использовать HTML: &lt;p&gt;, &lt;strong&gt;, &lt;br&gt;. Минимум 100 символов.</div>
+<div class="tip">Пиши как обычный текст — переносы строк и пустые строки сохранятся. HTML тоже можно: &lt;p&gt;, &lt;strong&gt;, &lt;br&gt;. Минимум 100 символов.</div>
 </div>
 <div class="field">
 <label>Отчёт — что прислать в подтверждение</label>
