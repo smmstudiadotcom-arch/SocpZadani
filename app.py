@@ -72,7 +72,7 @@ def build_description(url, network, template):
     )
 
 
-def create_task(url, keyword, network, price_user, quantity, template="share", custom=None):
+def create_task(url, keyword, network, price_user, quantity, template="share", custom=None, stub=False):
     if template == "custom" and custom:
         raw_name = custom.get("name") or "Поделиться в {network} {keyword}"
         name = raw_name.replace("{network}", network).replace("{keyword}", keyword).strip()[:70]
@@ -89,9 +89,10 @@ def create_task(url, keyword, network, price_user, quantity, template="share", c
         approve = tpl["approve"]
 
     balance = round(quantity * price_user * COMMISSION, 2)
+    link = "https://www.google.com/" if stub else url
     task = {
         "name": name,
-        "url": [url],
+        "url": [link],
         "type": "social",
         "description": desc,
         "approve_type": "hand",
@@ -278,6 +279,9 @@ textarea{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5p
 .two{display:flex;gap:12px}
 .two>div{flex:1}
 .tip{font-size:12.5px;color:#667085;margin-top:6px;line-height:1.45}
+.check{display:flex;gap:8px;align-items:flex-start;margin-top:9px;font-weight:400;
+ font-size:12.5px;color:#475467;line-height:1.45;cursor:pointer}
+.check input{width:auto;flex:none;margin-top:1px;accent-color:#4f6fff}
 code{background:#f2f4f7;padding:1px 5px;border-radius:4px;font-size:12px;
  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#344054}
 
@@ -360,6 +364,8 @@ __PASSFIELD__
 <div class="field">
 <label>Ссылка</label>
 <input type="url" id="url" placeholder="https://biohack.kz/">
+<label class="check"><input type="checkbox" id="stub"><span>В поле задания подставить google.com, а настоящую ссылку оставить только в описании</span></label>
+<div class="tip">Пригодится, если SocPublic пишет «ссылка не открывается».</div>
 </div>
 <div class="field">
 <label>Слово в названии задания</label>
@@ -550,7 +556,7 @@ $('go').onclick=async()=>{
     try{
       const r=await fetch('/create',{method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({url,keyword:$('kw').value.trim(),network:n,
-          price_user:parseFloat($('price').value)||6,quantity:parseInt($('qty').value)||10,password:pw,template:tpl,
+          price_user:parseFloat($('price').value)||6,quantity:parseInt($('qty').value)||10,password:pw,template:tpl,stub:$('stub').checked,
           custom:tpl==='custom'?{name:$('cname').value,description:$('cdesc').value,approve:$('capprove').value}:null})});
       const j=await r.json();
       if(j.status===0){rows[n].className='r ok';
@@ -689,7 +695,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             result = create_task(data["url"], data.get("keyword", ""), data["network"],
                                  float(data["price_user"]), int(data["quantity"]),
-                                 data.get("template", "share"), data.get("custom"))
+                                 data.get("template", "share"), data.get("custom"),
+                                 bool(data.get("stub")))
         except Exception as e:
             result = {"status": -1, "text": str(e)}
         self._send(200, "application/json; charset=utf-8",
