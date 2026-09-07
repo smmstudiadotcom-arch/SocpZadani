@@ -78,15 +78,22 @@ def create_task(url, keyword, network, price_user, quantity, template="share", c
                            .replace("{keyword}", keyword) \
                            .replace("{url}", url)
 
+    BLOCK_TAG = re.compile(r"^\s*<(p|div|ul|ol|li|h[1-6]|table|blockquote|pre)\b", re.I)
+
     def to_html(text):
-        """Переносы строк превращаем в HTML, если пользователь не разметил текст сам."""
-        text = text.replace("\r\n", "\n").replace("\r", "\n")
-        if "<p" in text.lower() or "<br" in text.lower() or "<div" in text.lower():
-            return text
+        """Каждый абзац размечаем отдельно: готовый HTML не трогаем,
+        обычный текст оборачиваем и сохраняем переносы строк."""
+        text = (text or "").replace("\r\n", "\n").replace("\r", "\n")
         blocks = [b.strip() for b in re.split(r"\n\s*\n", text) if b.strip()]
         if not blocks:
             return text
-        return "".join("<p>" + b.replace("\n", "<br>") + "</p>" for b in blocks)
+        out = []
+        for b in blocks:
+            if BLOCK_TAG.match(b):
+                out.append(b)                       # уже размеченный кусок
+            else:
+                out.append("<p>" + b.replace("\n", "<br>") + "</p>")
+        return "".join(out)
 
     if template == "custom" and custom:
         raw_name = custom.get("name") or "Поделиться в {network} {keyword}"
